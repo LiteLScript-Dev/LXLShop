@@ -1,2 +1,2 @@
 # LXLShop
-just a shop plugin
+Just a shop plugin for LiteXLoader
