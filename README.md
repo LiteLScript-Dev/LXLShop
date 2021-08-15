@@ -1,4 +1,4 @@
-# LXLShop
+# LXLShop ![](https://img.shields.io/badge/license-AGPLv3-blue)
 Just a shop plugin for LiteXLoader
 
 __________________________________
