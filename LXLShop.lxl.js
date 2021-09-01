@@ -20,6 +20,10 @@
  *
  */
 
+///////////////////////////////////////////////////////////
+//                         Config                        //
+///////////////////////////////////////////////////////////
+
 dir = './plugins/LXLShop/'
 if(file.exists(dir)==false){
     file.mkdir(dir) 
@@ -28,6 +32,24 @@ if(file.exists(dir)==false){
 	
 var cfg = data.parseJson(file.readFrom(dir+'data.json'))
 var seeing = {}
+
+//清除原lua版
+if(file.exists("plugins/LXLShop.lxl.lua"))
+    file.delete("plugins/LXLShop.lxl.lua");
+
+Array.prototype.remove = function(val) {
+    var index = this.indexOf(val)
+    if (index > -1) {
+        this.splice(index, 1)
+    }
+}
+
+logger.setTitle("LXLShop");
+
+
+///////////////////////////////////////////////////////////
+//                          Money                        //
+///////////////////////////////////////////////////////////
 
 //  0为计分板，1为LLMoney
 const mode = 0
@@ -64,12 +86,10 @@ function get_money_mode(){
 		return "LLMoney"
 }
 
-Array.prototype.remove = function(val) {
-    var index = this.indexOf(val)
-    if (index > -1) {
-        this.splice(index, 1)
-    }
-}
+
+///////////////////////////////////////////////////////////
+//                          Items                        //
+///////////////////////////////////////////////////////////
 
 function count_item(pl,it){
     var  c = 0
@@ -94,11 +114,11 @@ function remove_item(pl,it,count){
 			var kt = NBT.parseSNBT(it.nbt).removeTag("Damage").removeTag('Count')
             if(vt.toString() == kt.toString()){
                 if(plit[itt].count > count){
-                    log("清除玩家"+itt+"格中的物品"+count+"个")
-					pl.getInventory().removeItem(itt,count)
+                    logger.info("清除玩家"+itt+"格中的物品"+count+"个");
+					pl.getInventory().removeItem(Number(itt),Number(count))
                 }else{
                     count = count - plit[itt].count
-					pl.getInventory().removeItem(itt,plit[itt].count)
+					pl.getInventory().removeItem(Number(itt),Number(plit[itt].count))
 					if(count == 0){
 						break
                     }
@@ -131,6 +151,12 @@ function class_is_include(value){
     return false
 }
 
+//############################## Set Shop ##############################//
+
+///////////////////////////////////////////////////////////
+//                      SetShop Forms                    //
+///////////////////////////////////////////////////////////
+
 function mainf(){
     var f = mc.newSimpleForm()
 	f.setTitle('setshop')
@@ -151,6 +177,13 @@ function addclassf(){
 	return f
 }
 
+function removeclassf(){
+    var f =mc.newCustomForm()
+	f = f.setTitle('移除商品分类')
+	f = f.addDropdown("选择分类",cfg.listtype)
+	return f
+}
+
 function additemf(){
     var f =mc.newCustomForm()
 	f = f.setTitle('添加商品')
@@ -159,7 +192,26 @@ function additemf(){
 	f = f.addDropdown('选择商品分类',cfg.listtype)
 	return f
 }
-	
+
+function removesellf(){
+    var f =mc.newCustomForm()
+	f = f.setTitle('移除出售商品')
+	f = f.addDropdown("选择移除的商品",getAllSell())
+	return f
+}
+
+function removerecef(){
+    var f =mc.newCustomForm()
+	f = f.setTitle('移除回收商品')
+	f = f.addDropdown("选择移除的商品",getAllRece())
+	return f
+}
+
+
+///////////////////////////////////////////////////////////
+//                      SetShop Class                    //
+///////////////////////////////////////////////////////////
+
 function addclass(pl,da){
     if(da==null) return
     if(String(da[0])!=""){
@@ -175,6 +227,33 @@ function addclass(pl,da){
     }
 }
 
+//删除所有指定分类下的物品
+function delclass(c){
+    for(var v in cfg.rece){
+        if(v.type ==c){
+            delete cfg.rece.v
+        }
+    }
+    for(var v in cfg.sell){
+        if(v.type ==c){
+            delete cfg.sell.v
+        }
+    }
+}
+
+function removeclass(pl,da){
+    if(da!=null){
+        delclass(cfg.listtype[da[0]])
+		cfg.listtype.remove[da[0]]
+		pl.tell("[§cLXLShop§r] 分类移除成功")
+		save()
+    }
+}
+
+
+///////////////////////////////////////////////////////////
+//                      SetShop Sell                     //
+///////////////////////////////////////////////////////////
 
 function addsellitem(pl,dat){
     if(dat!=null && pl.getHand().isNull() != true){
@@ -201,7 +280,25 @@ function addsellitem(pl,dat){
     }
 }
 
+function removesell(pl,dt){
+    if(dt!=null){
+        delete cfg.sell[getAllSell()[Number(dt[0])]]
+		save()
+		pl.tell("[§cLXLShop§r] 出售商品移除成功")
+    }
+}
 
+function getAllSell(){
+    var s = []
+	for (var v in cfg.sell){
+        s.push(v)
+    }
+	return s
+}
+
+///////////////////////////////////////////////////////////
+//                     SetShop Receive                   //
+///////////////////////////////////////////////////////////
 
 function addreceitem(pl,dat){
     if(dat!=null && pl.getHand().isNull() != true){
@@ -218,7 +315,7 @@ function addreceitem(pl,dat){
                 t.nbt = it.setByte('Count',1).toSNBT()
                 t.type = cfg.listtype[dat[2]]
                 cfg.rece[String(dat[0])] = t
-                pl.tell('[§cLXLShop§r] 出售商品添加成功')
+                pl.tell('[§cLXLShop§r] 回收商品添加成功')
                 save()
             }
         }else{
@@ -227,52 +324,13 @@ function addreceitem(pl,dat){
     }
 }
 
-function removeclassf(){
-    var f =mc.newCustomForm()
-	f = f.setTitle('移除商品分类')
-	f = f.addDropdown("选择分类",cfg.listtype)
-	return f
-}
-
-//删除所有指定分类下的物品
-function delclass(c){
-    for(var v in cfg.rece){
-        if(v.type ==c){
-            delete cfg.rece.v
-        }
-    }
-    for(var v in cfg.sell){
-        if(v.type ==c){
-            delete cfg.sell.v
-        }
-    }
-}
-
-function removeclass(pl,da){
-    if(da!=null){
-        delclass(cfg.listtype[da[0]])
-		cfg.listtype.remove[da[0]]
-		pl.tell("[§cLXLShop§r] 分类移除成功")
+function removerece(pl,dt){
+	if(dt!=null){
+        delete cfg.rece[getAllRece()[Number(dt[0])]]
 		save()
+		pl.tell("[§cLXLShop§r] 回收商品移除成功")
     }
 }
-	
-
-function getAllSell(){
-    var s = []
-	for (var v in cfg.sell){
-        s.push(v)
-    }
-	return s
-}
-
-function removesellf(){
-    var f =mc.newCustomForm()
-	f = f.setTitle('移除出售商品')
-	f = f.addDropdown("选择移除的商品",getAllSell())
-	return f
-}
-
 
 function getAllRece(){
     var s = []
@@ -283,31 +341,9 @@ function getAllRece(){
 }
 
 
-function removesell(pl,dt){
-    if(dt!=null){
-        delete cfg.sell[getAllSell()[Number(dt[0])]]
-		save()
-		pl.tell("[§cLXLShop§r] 出售商品移除成功")
-    }
-}
-
-
-function removerecef(){
-    var f =mc.newCustomForm()
-	f = f.setTitle('移除回收商品')
-	f = f.addDropdown("选择移除的商品",getAllRece())
-	return f
-}
-
-
-function removerece(pl,dt){
-	if(dt!=null){
-        delete cfg.rece[getAllRece()[Number(dt[0])]]
-		save()
-		pl.tell("[§cLXLShop§r] 回收商品移除成功")
-    }
-}
-
+///////////////////////////////////////////////////////////
+//                      SetShop Main                     //
+///////////////////////////////////////////////////////////
 
 function main(pl,id){
     if(id != null){
@@ -347,8 +383,13 @@ function main(pl,id){
 
     }
 }
-	
-		
+
+//############################## Shop ##############################//
+
+///////////////////////////////////////////////////////////
+//                       Shop Forms                      //
+///////////////////////////////////////////////////////////
+
 function mainshopf(){
     var f = mc.newSimpleForm()
 	f.setTitle('shop')
@@ -363,12 +404,33 @@ function chosesellf(c){
 	f.setTitle('shop')
 	for(var v in cfg.sell){
         if(cfg.sell[v].type == c){
-            log(v)
-            f.addButton(v)
+            f.addButton(String(v))
         }
     }
     return f
 }
+
+function choseclassf()
+{
+    var f = mc.newSimpleForm()
+	f.setTitle('shop')
+	for (var v in cfg.listtype){
+        f.addButton(cfg.listtype[String(v)])
+    }
+	return f
+}
+
+function choserecef(c){
+    var f = mc.newSimpleForm()
+	f.setTitle('shop')
+	for (v in cfg.rece){
+        if(cfg.rece[v].type == c){
+            f.addButton(String(v))
+        }
+    }
+    return f
+}
+
 	
 function bysellf(i){
     var f = mc.newCustomForm()
@@ -378,6 +440,19 @@ function bysellf(i){
 	f = f.addInput('输入购买数量')
 	return f
 }
+
+function byrecef(i){
+    var f = mc.newCustomForm()
+	f.setTitle('回收商品')
+	f.addLabel("你正在回收："+i)
+    f.addLabel("价格："+cfg.rece[i].price)
+	f.addInput('输入回收数量')
+	return f
+}
+
+///////////////////////////////////////////////////////////
+//                       Shop Sell                       //
+///////////////////////////////////////////////////////////
 
 function bysell(pl,dt){
     if(dt!=null){
@@ -407,28 +482,19 @@ function chosesell(pl,dt){
     if(dt!=null){
         var c = []
 		for (var v in cfg.sell){
-            log(v)
             if(cfg.sell[v].type == seeing[pl.realName]){
                 c.push(v)
             }   
         }
-        log(dt)
 		var i = cfg.sell[c[dt]]
 		seeing[pl.realName] = i
-        log(i)
 		pl.sendForm(bysellf(c[dt]),bysell)
     }
 }
 	
-function choseclassf()
-{
-    var f = mc.newSimpleForm()
-	f.setTitle('shop')
-	for (var v in cfg.listtype){
-        f.addButton(cfg.listtype[v])
-    }
-	return f
-}
+///////////////////////////////////////////////////////////
+//                       Shop Class                      //
+///////////////////////////////////////////////////////////
 		
 function choseclass(pl,dt){
     if(dt!=null){
@@ -437,18 +503,10 @@ function choseclass(pl,dt){
     }
 }
 	
-		
+///////////////////////////////////////////////////////////
+//                      Shop Receive                     //
+///////////////////////////////////////////////////////////
 
-function choserecef(c){
-    var f = mc.newSimpleForm()
-	f.setTitle('shop')
-	for (v in cfg.rece){
-        if(cfg.rece[v].type == c){
-            f.addButton(v)
-        }
-    }
-    return f
-}
 
 function choseclassrece(pl,dt){
     if(dt!=null){
@@ -457,15 +515,6 @@ function choseclassrece(pl,dt){
     }
 }
 	
-function byrecef(i){
-    var f = mc.newCustomForm()
-	f.setTitle('回收商品')
-	f.addLabel("你正在回收："+i)
-    f.addLabel("价格："+cfg.rece[i].price)
-	f.addInput('输入回收数量')
-	return f
-}
-
 function choserece(pl,dt){
     if(dt!=null){
         var c = []
@@ -479,7 +528,6 @@ function choserece(pl,dt){
         pl.sendForm(byrecef(c[dt]),byrece)
     }
 }
-
 
 function byrece(pl,dt){
     if(dt!=null){
@@ -504,6 +552,10 @@ function byrece(pl,dt){
             
     }
 }
+
+///////////////////////////////////////////////////////////
+//                       Shop Main                       //
+///////////////////////////////////////////////////////////
 	
 function mainshop(pl,dt){
     if(dt!=null){
@@ -515,7 +567,12 @@ function mainshop(pl,dt){
         }
     }
 }
-	
+
+
+
+///////////////////////////////////////////////////////////
+//                       Register                        //
+///////////////////////////////////////////////////////////
 		
 mc.regPlayerCmd('setshop','set the shop',function (pl,a){
     pl.sendForm(mainf(),main)
@@ -525,7 +582,7 @@ mc.regPlayerCmd("shop","just a shop",function (pl,a){
 })
 
 log("[LXLShop] init!")
-log("[LXLShop] version 1.2.1v2 with "+get_money_mode())
+log("[LXLShop] version 1.3.0 with "+get_money_mode())
 
 
 
